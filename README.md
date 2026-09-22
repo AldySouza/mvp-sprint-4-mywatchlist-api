@@ -1,0 +1,246 @@
+# 📺 MyWatchList API
+
+> API REST que guarda a sua lista de séries favoritas: nota, comentário, filtros e estatísticas.
+
+Back-end do **MyWatchList**, um organizador pessoal de séries. Esta API persiste em **SQLite** as séries que o usuário marcou como favoritas (vindas da busca na [TVMaze](https://www.tvmaze.com/api), feita pelo front-end), com nota de 1 a 5 e comentário opcional. Também entrega a lista filtrada e ordenada e um resumo estatístico para o painel da interface.
+
+É o **componente secundário** do MVP da Sprint 4 da Pós-Graduação em Engenharia de Software da PUC-Rio:
+
+| Componente | Papel | Repositório |
+|---|---|---|
+| **mywatchlist-front** | Interface do usuário (componente principal) | https://github.com/AldySouza/mvp-sprint-4-mywatchlist-front |
+| **mywatchlist-api** (este) | API REST + banco SQLite | https://github.com/AldySouza/mvp-sprint-4-mywatchlist-api |
+| **TVMaze API** | API externa pública, consumida pelo front | https://www.tvmaze.com/api |
+
+![Swagger UI da MyWatchList API](docs/swagger.png)
+
+---
+
+## Sumário
+
+- [Rotas](#-rotas)
+- [Modelo de dados](#-modelo-de-dados)
+- [Arquitetura](#-arquitetura)
+- [Como rodar](#-como-rodar)
+- [Testes](#-testes)
+- [Estrutura de pastas](#-estrutura-de-pastas)
+- [Tecnologias](#-tecnologias)
+
+---
+
+## 🔌 Rotas
+
+Com a API rodando, a documentação interativa (**Swagger UI**) fica em **http://localhost:8000/docs**, onde dá para testar todas as rotas no navegador.
+
+| Método | Rota | Descrição | Sucesso | Erros |
+|---|---|---|---|---|
+| `POST` | `/favoritos` | Salva uma série nos favoritos | `201` | `422` dados inválidos |
+| `GET` | `/favoritos` | Lista os favoritos, com filtro e ordenação opcionais | `200` | `422` `sort_by` inválido |
+| `GET` | `/favoritos/estatisticas` | Resumo da lista: total, média, notas e gêneros | `200` | — |
+| `PUT` | `/favoritos/{id}` | Atualiza nota e/ou comentário | `200` | `404` não existe · `422` nota inválida |
+| `DELETE` | `/favoritos/{id}` | Remove um favorito | `204` | `404` não existe |
+
+Além do CRUD básico, a API oferece:
+
+- **Filtro por gênero:** `?genre=Drama`, sem diferenciar maiúsculas de minúsculas. Séries com vários gêneros aparecem em todos eles.
+- **Ordenação:** por padrão, os mais recentes vêm primeiro. Com `?sort_by=rating`, a lista vem da maior nota para a menor. Os dois parâmetros podem ser combinados.
+- **Estatísticas agregadas** para o painel do front.
+- **Validação** com Pydantic: nota entre 1 e 5, nome e gêneros obrigatórios.
+- **Carga inicial:** 5 séries reais da TVMaze são inseridas na primeira execução, com o banco vazio.
+
+### Exemplos
+
+**Criar um favorito**
+
+```bash
+curl -X POST http://localhost:8000/favoritos \
+  -H "Content-Type: application/json" \
+  -d '{
+        "name": "Breaking Bad",
+        "genres": ["Drama", "Crime", "Thriller"],
+        "rating": 5,
+        "comment": "Um dos maiores dramas já feitos.",
+        "image_url": "https://static.tvmaze.com/uploads/images/medium_portrait/501/1253519.jpg",
+        "external_id": 169
+      }'
+```
+
+```json
+{
+  "id": 6,
+  "name": "Breaking Bad",
+  "genres": ["Drama", "Crime", "Thriller"],
+  "rating": 5,
+  "comment": "Um dos maiores dramas já feitos.",
+  "image_url": "https://static.tvmaze.com/uploads/images/medium_portrait/501/1253519.jpg",
+  "external_id": 169,
+  "created_at": "2026-09-22T17:30:00"
+}
+```
+
+**Listar só dramas, da maior nota para a menor**
+
+```bash
+curl "http://localhost:8000/favoritos?genre=Drama&sort_by=rating"
+```
+
+**Editar nota e apagar o comentário**
+
+```bash
+curl -X PUT http://localhost:8000/favoritos/6 \
+  -H "Content-Type: application/json" \
+  -d '{"rating": 4, "comment": null}'
+```
+
+No `PUT`, campo omitido mantém o valor atual, e `"comment": null` apaga o comentário. Só `rating` e `comment` podem ser editados.
+
+**Estatísticas**
+
+```bash
+curl http://localhost:8000/favoritos/estatisticas
+```
+
+```json
+{
+  "total": 5,
+  "media_notas": 4.4,
+  "por_nota": { "1": 0, "2": 0, "3": 0, "4": 3, "5": 2 },
+  "por_genero": [
+    { "genero": "Drama", "total": 3 },
+    { "genero": "Comedy", "total": 2 }
+  ]
+}
+```
+
+**Remover**
+
+```bash
+curl -X DELETE http://localhost:8000/favoritos/6   # 204 No Content
+```
+
+---
+
+## 🗃️ Modelo de dados
+
+Tabela `favoritos` (SQLite, via SQLAlchemy):
+
+| Campo | Tipo | Obrigatório | Observação |
+|---|---|---|---|
+| `id` | inteiro | auto | Chave primária |
+| `name` | texto | ✔ | Nome da série |
+| `genres` | texto | ✔ | Guardado como `"Drama,Crime"`; entra e sai da API como lista |
+| `rating` | inteiro | ✔ | Nota de 1 a 5 |
+| `comment` | texto | | Comentário livre |
+| `image_url` | texto | | URL da capa (TVMaze) |
+| `external_id` | inteiro | | ID da série na TVMaze |
+| `created_at` | data/hora | auto | Define a ordenação padrão |
+
+---
+
+## 🏗️ Arquitetura
+
+![Diagrama de arquitetura](docs/arquitetura.png)
+
+<sub>🟧 módulos implementados neste MVP · 🟦 módulo externo consumido.</sub>
+
+A interface (rodando no navegador) chama esta API via REST/JSON. A API grava no SQLite, que no Docker fica no volume `mywatchlist-data`, montado em `/app/data`. Assim os dados sobrevivem quando o container é recriado. A TVMaze é consumida direto pelo front. O CORS está liberado porque a interface roda em outra origem (porta 3001).
+
+---
+
+## 🚀 Como rodar
+
+### Opção 1: Docker (recomendado)
+
+Pré-requisito: [Docker](https://docs.docker.com/get-docker/).
+
+```bash
+git clone https://github.com/AldySouza/mvp-sprint-4-mywatchlist-api.git mywatchlist-api
+cd mywatchlist-api
+docker build -t mywatchlist-api .
+docker run -p 8000:8000 -v mywatchlist-data:/app/data mywatchlist-api
+```
+
+Ou use o script, que também verifica se o Docker está instalado e tenta iniciá-lo se estiver parado:
+
+| Sistema | Comando |
+|---|---|
+| macOS / Linux | `./start.sh` |
+| Windows (CMD) | `start.bat` |
+| Windows (PowerShell) | `.\start.ps1` |
+
+Acesse **http://localhost:8000/docs**. Para usar outra porta: `PORT=9000 ./start.sh`.
+
+> **Aplicação completa (front + API):** use o `docker compose` do repositório [mywatchlist-front](https://github.com/AldySouza/mvp-sprint-4-mywatchlist-front#-como-rodar), que sobe os dois componentes juntos.
+
+### Opção 2: ambiente local (sem Docker)
+
+Pré-requisito: [Python 3.12+](https://www.python.org/downloads/).
+
+```bash
+./run.sh
+```
+
+O script cria o *virtualenv*, instala as dependências e sobe o servidor com *reload*. Passo a passo equivalente:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+pip install -r requirements-dev.txt
+uvicorn app.main:app --reload --port 8000
+```
+
+Sem Docker, o banco é criado em `./favoritos.db`. Para usar outro caminho, defina a variável `DATABASE_URL` (ex.: `sqlite:///./outro.db`).
+
+---
+
+## 🧪 Testes
+
+```bash
+./test.sh
+```
+
+O script cria o *virtualenv* (se ainda não existir), instala as dependências de dev e roda o `pytest`. Argumentos extras vão direto para o pytest, por exemplo `./test.sh tests/contract -v`.
+
+São 22 testes, cada um com banco SQLite em memória isolado:
+
+- **Contrato** (`tests/contract/`): formato de request e response e códigos HTTP de cada rota.
+- **Integração** (`tests/integration/`): fluxos completos, como criar, listar com filtro e ordenação, editar e remover.
+
+---
+
+## 📁 Estrutura de pastas
+
+```
+mywatchlist-api/
+├── app/
+│   ├── main.py          # App FastAPI: rotas, CORS e carga inicial
+│   ├── models.py        # Modelo SQLAlchemy (tabela favoritos)
+│   ├── schemas.py       # Schemas Pydantic (entrada, saída, validação)
+│   └── database.py      # Engine, sessão e DATABASE_URL
+├── tests/
+│   ├── conftest.py      # Fixture com banco em memória
+│   ├── contract/        # Testes de contrato por rota
+│   └── integration/     # Testes de fluxo
+├── docs/                # Diagrama e captura do Swagger
+├── Dockerfile
+├── requirements.txt     # Dependências de produção
+├── requirements-dev.txt # + pytest/httpx para testes
+├── start.sh / .bat / .ps1   # Build + run via Docker
+├── run.sh               # Execução local sem Docker
+└── test.sh              # Roda os testes (venv + pytest)
+```
+
+---
+
+## 🛠️ Tecnologias
+
+- **[Python 3.12](https://www.python.org/)** + **[FastAPI](https://fastapi.tiangolo.com/)**, com Swagger gerado automaticamente
+- **[SQLAlchemy 2](https://www.sqlalchemy.org/)** + **SQLite**
+- **[Pydantic 2](https://docs.pydantic.dev/)**: validação
+- **[Uvicorn](https://www.uvicorn.org/)**: servidor ASGI
+- **Pytest + HTTPX**: testes
+- **Docker**
+
+---
+
+<sub>MVP da Sprint 4 (Arquitetura de Software), Pós-Graduação em Engenharia de Software, PUC-Rio.</sub>
