@@ -149,57 +149,112 @@ A interface (rodando no navegador) chama esta API via REST/JSON. A API grava no 
 
 ## 🚀 Como rodar
 
-### Opção 1: Docker (recomendado)
+### Opção 1: script `start` (recomendado)
 
-Pré-requisito: [Docker](https://docs.docker.com/get-docker/).
+Funciona num computador **sem nada instalado**. O script:
 
-```bash
-git clone https://github.com/AldySouza/mvp-sprint-4-mywatchlist-api.git mywatchlist-api
-cd mywatchlist-api
-docker build -t mywatchlist-api .
-docker run -p 8000:8000 -v mywatchlist-data:/app/data mywatchlist-api
-```
-
-Ou use o script, que também verifica se o Docker está instalado e tenta iniciá-lo se estiver parado:
+1. verifica se há um **Python 3.10 a 3.13** e, se não houver, instala o Python 3.12 (Homebrew ou python.org no macOS; `apt`/`dnf`/`pacman`/… no Linux; `winget` ou python.org no Windows);
+2. verifica se o **Docker** está instalado e rodando; se não estiver instalado, instala (Docker Desktop no macOS/Windows, Docker Engine no Linux) e tenta iniciá-lo;
+3. com o Docker pronto, builda a imagem e sobe a API num container;
+4. se o Docker não ficar pronto (por exemplo, recém-instalado e pedindo reinicialização ou novo login), sobe a API **com Python local**: cria a `.venv`, instala o `requirements.txt` e roda o servidor.
 
 | Sistema | Comando |
 |---|---|
 | macOS / Linux | `./start.sh` |
-| Windows (CMD) | `start.bat` |
+| Windows (duplo clique ou CMD) | `start.bat` |
 | Windows (PowerShell) | `.\start.ps1` |
 
-Acesse **http://localhost:8000/docs**. Para usar outra porta: `PORT=9000 ./start.sh`.
+Acesse **http://localhost:8000/docs**. Para parar: `Ctrl+C`.
 
-> **Aplicação completa (front + API):** use o `docker compose` do repositório [mywatchlist-front](https://github.com/AldySouza/mvp-sprint-4-mywatchlist-front#-como-rodar), que sobe os dois componentes juntos.
+- **Sem Docker, direto com Python local:** `./start.sh --local` (Windows: `start.bat -Local` ou `.\start.ps1 -Local`).
+- **Outra porta:** `PORT=9000 ./start.sh` (Windows PowerShell: `$env:PORT=9000; .\start.ps1`).
+- A instalação de Python/Docker pode pedir a senha de administrador. Nas execuções seguintes nada é reinstalado: a `.venv` só é recriada se estiver quebrada e as dependências só são reinstaladas se o `requirements.txt` mudar.
 
-### Opção 2: ambiente local (sem Docker)
+> **Aplicação completa (front + API):** use o `start` do repositório [mywatchlist-front](https://github.com/AldySouza/mvp-sprint-4-mywatchlist-front#-como-rodar), que sobe os dois componentes juntos.
 
-Pré-requisito: [Python 3.12+](https://www.python.org/downloads/).
+### Opção 2: passo a passo manual com Python
+
+Faz o mesmo que o `start --local`, um comando por vez.
+
+**1. Instale o Python 3.12** (qualquer versão de 3.10 a 3.13 serve; a 3.14 ainda não tem pacotes prontos de algumas dependências). Confira com `python3 --version` (Windows: `py -3.12 --version`). Se não tiver:
+
+| Sistema | Comando |
+|---|---|
+| macOS (Homebrew) | `brew install python@3.12` |
+| Ubuntu / Debian | `sudo apt-get install python3.12 python3.12-venv` |
+| Fedora | `sudo dnf install python3.12` |
+| Windows | `winget install -e --id Python.Python.3.12` |
+
+Ou baixe o instalador em https://www.python.org/downloads/.
+
+**2. Baixe o código e entre na pasta**
 
 ```bash
-./run.sh
+git clone https://github.com/AldySouza/mvp-sprint-4-mywatchlist-api.git mywatchlist-api
+cd mywatchlist-api
 ```
 
-O script cria o *virtualenv*, instala as dependências e sobe o servidor com *reload*. Passo a passo equivalente:
+**3. Crie e ative o ambiente virtual (*virtualenv*)**
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate          # Windows: .venv\Scripts\activate
-pip install -r requirements-dev.txt
-uvicorn app.main:app --reload --port 8000
+# macOS / Linux
+python3.12 -m venv .venv
+source .venv/bin/activate
 ```
+
+```powershell
+# Windows (PowerShell)
+py -3.12 -m venv .venv
+.venv\Scripts\Activate.ps1
+# no CMD: .venv\Scripts\activate.bat
+```
+
+**4. Instale as dependências**
+
+```bash
+pip install -r requirements.txt
+```
+
+**5. Suba o servidor**
+
+```bash
+uvicorn app.main:app --port 8000
+# durante o desenvolvimento, --reload reinicia a cada alteração no código
+```
+
+Acesse **http://localhost:8000/docs**. Para parar: `Ctrl+C`; para sair da *virtualenv*: `deactivate`.
 
 Sem Docker, o banco é criado em `./favoritos.db`. Para usar outro caminho, defina a variável `DATABASE_URL` (ex.: `sqlite:///./outro.db`).
+
+### Opção 3: passo a passo manual com Docker
+
+Pré-requisito: [Docker](https://docs.docker.com/get-docker/) instalado e rodando.
+
+```bash
+docker build -t mywatchlist-api .
+docker run --rm -p 8000:8000 -v mywatchlist-data:/app/data mywatchlist-api
+```
+
+O banco fica no volume `mywatchlist-data`, então os favoritos continuam lá quando o container é recriado.
 
 ---
 
 ## 🧪 Testes
 
-```bash
-./test.sh
-```
+| Sistema | Comando |
+|---|---|
+| macOS / Linux | `./test.sh` |
+| Windows (duplo clique ou CMD) | `test.bat` |
+| Windows (PowerShell) | `.\test.ps1` |
 
-O script cria o *virtualenv* (se ainda não existir), instala as dependências de dev e roda o `pytest`. Argumentos extras vão direto para o pytest, por exemplo `./test.sh tests/contract -v`.
+O script garante o Python (instala se faltar), prepara a `.venv` do mesmo jeito que o `start`, instala as dependências de dev e roda o `pytest`. Argumentos extras vão direto para o pytest, por exemplo `./test.sh tests/contract -v`.
+
+**Manualmente**, com a *virtualenv* dos passos 1–3 acima ativada:
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
 
 São 22 testes, cada um com banco SQLite em memória isolado:
 
@@ -225,9 +280,8 @@ mywatchlist-api/
 ├── Dockerfile
 ├── requirements.txt     # Dependências de produção
 ├── requirements-dev.txt # + pytest/httpx para testes
-├── start.sh / .bat / .ps1   # Build + run via Docker
-├── run.sh               # Execução local sem Docker
-└── test.sh              # Roda os testes (venv + pytest)
+├── start.sh / .bat / .ps1   # Verifica/instala Python e Docker e sobe a API
+└── test.sh / .bat / .ps1    # Roda os testes (venv + pytest)
 ```
 
 ---

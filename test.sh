@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# Roda os testes da API localmente: cria venv, instala deps de dev, roda pytest.
+# Roda os testes da API localmente: garante o Python (instala se faltar), prepara
+# a .venv (mesma lógica do start.sh), instala as deps de dev e roda o pytest.
 # Argumentos extras vão direto pro pytest (ex.: ./test.sh tests/contract -v).
 set -euo pipefail
 cd "$(dirname "$0")"
 
-if [ ! -d ".venv" ]; then
-  echo "Criando venv..."
-  python3 -m venv .venv
-fi
+source ./start.sh
+ensure_python
+prepare_venv
 
-source .venv/bin/activate
-pip install -q --upgrade pip
-pip install -q -r requirements-dev.txt
+echo "==> Instalando dependências de teste..."
+.venv/bin/python -m pip install --disable-pip-version-check -q -r requirements-dev.txt
 
-exec pytest "$@"
+echo "==> Rodando os testes..."
+exec .venv/bin/python -m pytest "$@"
