@@ -235,6 +235,14 @@ docker build -t mywatchlist-api .
 docker run --rm -p 8000:8000 -v mywatchlist-data:/app/data mywatchlist-api
 ```
 
+Ou, com Docker Compose:
+
+```bash
+docker compose up --build
+```
+
+Para parar: `Ctrl+C`, ou `docker compose down`. Outra porta: `PORT=9000 docker compose up --build`.
+
 O banco fica no volume `mywatchlist-data`, então os favoritos continuam lá quando o container é recriado.
 
 ---
@@ -278,6 +286,7 @@ mywatchlist-api/
 │   └── integration/     # Testes de fluxo
 ├── docs/                # Diagrama e captura do Swagger
 ├── Dockerfile
+├── docker-compose.yml   # Sobe só a API (com volume do banco)
 ├── requirements.txt     # Dependências de produção
 ├── requirements-dev.txt # + pytest/httpx para testes
 ├── start.sh / .bat / .ps1   # Verifica/instala Python e Docker e sobe a API

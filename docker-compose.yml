@@ -1,0 +1,14 @@
+services:
+  mywatchlist-api:
+    build:
+      context: .
+    container_name: mywatchlist-api
+    ports:
+      - "${PORT:-8000}:8000"
+    volumes:
+      - mywatchlist-data:/app/data
+
+volumes:
+  mywatchlist-data:
+    # Nome fixo: é o mesmo volume usado pelo start.sh / docker run.
+    name: mywatchlist-data
