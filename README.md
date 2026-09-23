@@ -190,8 +190,8 @@ Ou baixe o instalador em https://www.python.org/downloads/.
 **2. Baixe o código e entre na pasta**
 
 ```bash
-git clone https://github.com/AldySouza/mvp-sprint-4-mywatchlist-api.git mywatchlist-api
-cd mywatchlist-api
+git clone https://github.com/AldySouza/mvp-sprint-4-mywatchlist-api.git
+cd mvp-sprint-4-mywatchlist-api
 ```
 
 **3. Crie e ative o ambiente virtual (*virtualenv*)**
@@ -274,7 +274,7 @@ São 22 testes, cada um com banco SQLite em memória isolado:
 ## 📁 Estrutura de pastas
 
 ```
-mywatchlist-api/
+mvp-sprint-4-mywatchlist-api/
 ├── app/
 │   ├── main.py          # App FastAPI: rotas, CORS e carga inicial
 │   ├── models.py        # Modelo SQLAlchemy (tabela favoritos)

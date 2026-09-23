@@ -7,7 +7,7 @@
 #   .\start.ps1           Docker, ou Python local como alternativa
 #   .\start.ps1 -Local    direto com Python local, sem Docker
 #
-# Para subir front + API juntos, use mywatchlist-front\start.ps1.
+# Para subir front + API juntos, use mvp-sprint-4-mywatchlist-front\start.ps1.
 param([switch]$Local)
 
 $ErrorActionPreference = "Stop"

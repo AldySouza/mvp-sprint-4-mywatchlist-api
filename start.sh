@@ -8,7 +8,7 @@
 #   ./start.sh           Docker, ou Python local como alternativa
 #   ./start.sh --local   direto com Python local, sem Docker
 #
-# Para subir front + API juntos, use mywatchlist-front/start.sh.
+# Para subir front + API juntos, use mvp-sprint-4-mywatchlist-front/start.sh.
 set -euo pipefail
 
 cd "$(dirname "$0")"
